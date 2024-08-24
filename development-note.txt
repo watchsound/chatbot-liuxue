@@ -1,0 +1,11 @@
+https://github.com/hwchase17/chat-langchain
+
+
+1:  file text format issue when move to linux
+
+in window-----
+afilename = 'predefined-topics' + '\\' + str(order)
+in linux -----
+afilename = 'predefined-topics' + '/' + str(order)
+
+2:  change  localhost to ip address in template index.html

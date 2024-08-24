@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>出国教育咨询</title>
+    <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .chat-body {
+            width: 550px;
+            margin: 50px auto;
+        }
+        .card-body {
+            background-color: #333;
+            color: #fff;
+            border-radius: 10px;
+        }
+        .server-message {
+            background-color: #444;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 10px;
+        }
+        .client-message {
+            background-color: #555;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 10px;
+        }
+        .form-inline {
+            display: flex;
+            justify-content: space-between;
+        }
+        .form-control {
+            width: 80%;
+            background-color: #333;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+            margin-right: 10px;
+        }
+        #send {
+            background-color: #4C4CFF;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+        }
+        .form-message {
+          margin-top: 10px;
+        }
+    </style>
+    <script>
+        var endpoint = "ws://localhost:8088/chat";
+        var ws = new WebSocket(endpoint);
+        var dataforuser = true;
+        var  dataforusercache = "";
+        var prev_datatype = "";
+        // Receive message from server word by word. Display the words as they are received.
+        ws.onmessage = function (event) {
+            var messages = document.getElementById('messages');
+            var data = JSON.parse(event.data);
+            if (data.sender === "bot") {
+                 if( prev_datatype == "stream" && data.type == 'start'){
+                      dataforuser = true;
+                      dataforusercache = ""; 
+                 }
+                 else if (data.type === "welcome") {
+                     var div = document.createElement('div');
+                     div.className = 'server-message';
+                     var p = document.createElement('p');
+                     p.innerHTML = "<strong>" + "Chatbot: " + "</strong>";
+                     p.innerHTML += data.message
+                     div.appendChild(p);
+                     messages.appendChild(div);
+                 } else if (data.type === "start") {
+                    dataforuser = true;
+                    dataforusercache = "";
+                    var header = document.getElementById('header');
+                    header.innerHTML = "答案在回来的路上...";
+                    var div = document.createElement('div');
+                    div.className = 'server-message';
+                    var p = document.createElement('p');
+                    p.innerHTML = "<strong>" + "Chatbot: " + "</strong>";
+                    div.appendChild(p);
+                    messages.appendChild(div);
+                } else if (data.type === "stream") {
+                    var header = document.getElementById('header');
+                    header.innerHTML = "打工机器人认真996中...";
+                    var p = messages.lastChild.lastChild;
+                    if (data.message === "\n") {
+                        p.innerHTML += "<br>";
+                    } else { 
+                        if( data.message.startsWith("#!#") ){
+                            p.innerHTML += data.message.substring(3);
+                            dataforuser = true;
+                            return;  
+                        }
+                        var pp = data.message.indexOf("姓名=");
+                        if(  pp >  0){
+                             p.innerHTML += data.message.substring(0, pp);
+                             dataforuser = false;
+                             return;
+                        }
+                        var pplen = data.message.length;
+                        if( data.message.endsWith("姓")){
+                             if( pplen > 1) p.innerHTML += data.message.substring(0, pplen-1);
+                             dataforusercache = "姓";
+                             return;
+                        }
+                        if( data.message.endsWith("姓名")){
+                             if( pplen > 2) p.innerHTML += data.message.substring(0, pplen-2);
+                             dataforusercache = "姓名";
+                             return;
+                        }
+                        var tmp = dataforusercache + data.message;
+                        if( tmp.startsWith("姓名=") ){
+                            dataforuser = false;
+                        }
+                        if(! dataforuser ) return;
+                        if( tmp.message == '姓' || tmp.message == '姓名'){
+                            dataforusercache = tmp
+                            return; 
+                        }
+                        if( tmp.length > 2 ){
+                            dataforusercache = "";
+                        } 
+                        p.innerHTML += data.message;
+                    }
+                } else if (data.type === "info") {
+                    var header = document.getElementById('header');
+                    header.innerHTML = data.message;
+                } else if (data.type === "end") {
+                    var header = document.getElementById('header');
+                    header.innerHTML = "Ask a question";
+                    var button = document.getElementById('send');
+                    button.innerHTML = "Send";
+                    button.disabled = false;
+                } else if (data.type === "error") {
+                    var header = document.getElementById('header');
+                    header.innerHTML = "Ask a question";
+                    var button = document.getElementById('send');
+                    button.innerHTML = "Send";
+                    button.disabled = false;
+                    var p = messages.lastChild.lastChild;
+                    p.innerHTML += data.message;
+                }
+            } else {
+                var div = document.createElement('div');
+                div.className = 'client-message';
+                var p = document.createElement('p');
+                p.innerHTML = "<strong>" + "You: " + "</strong>";
+                p.innerHTML += data.message;
+                div.appendChild(p);
+                messages.appendChild(div);
+            }
+            // Scroll to the bottom of the chat
+            prev_datatype = data.datetype;
+            messages.scrollTop = messages.scrollHeight;
+        };
+        // Send message to server
+        function sendMessage(event) {
+            event.preventDefault();
+            var message = document.getElementById('messageText').value;
+            if (message === "") {
+                return;
+            }
+            ws.send(message);
+            document.getElementById('messageText').value = "";
+
+            // Turn the button into a loading button
+            var button = document.getElementById('send');
+            button.innerHTML = "Loading...";
+            button.disabled = true;
+        }
+        window.onload = function(){
+            var data = {
+               'sender': 'bot', 'type':'welcome', 'message':'您好！我是XXX教育咨询出国留学中介的工作人员，百森一村起源于哈佛⼤学，美国⾏业协会IECA&NACAC信誉背书的国际教育专家。 我非常愿意为您提供有关留学的咨询。在我们的交谈中，请注意避免讨论与出国留学无关的政治话题。<p>' +
+
+'现在，我想了解一些您的具体要求和期望，以便能更好地为您提供帮助。请回答以下问题： <p>' +
+'您对留学有什么具体的要求或期望？<p>' +
+'您打算申请哪些学校和专业？<p>' +
+'您的托福雅思成绩是多少？<p>' +
+'您能告诉我您的姓名和微信号，以便我们能够更方便地联系吗？<p>' +
+'请提供以上信息，我将尽力回答您的问题和提供相关建议'
+             }
+             ws.onmessage ( {'data': JSON.stringify(data), 'info': ''});
+        }
+    </script>
+</head>
+<body class="bg-black">
+    <div class="chat-body card">
+        <div class="card-body p-5">
+            <h4 class="card-title text-center text-xl font-medium"> XXX 出国留学咨询 </h4>
+            <p class="card-text text-center text-sm" id="header"> 聊我！ </p>
+            <hr class="border-gray-500 mb-5" style="margin-top: 20px;">
+            <div id="messages" class="overflow-auto" style="max-height: 500px;">
+            </div>
+            <form action="" class="form-inline mt-5" id="chat-form" onsubmit="sendMessage(event)">
+                <input type="text" class="form-control" placeholder="Write your question" id="messageText">
+                <button id="send" type="submit" class="btn btn-primary">发送</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
